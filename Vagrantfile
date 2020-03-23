@@ -16,8 +16,13 @@ Vagrant.configure("2") do |config|
   # For a complete reference, please see the online documentation at
   # https://docs.vagrantup.com.
 
-  # Set up the quickstart environment on 16.04 LTS Ubuntu
-  config.vm.box = "ubuntu/xenial64"
+  # Set up the quickstart environment on 18.04 LTS Ubuntu
+  config.vm.box = "ubuntu/bionic64"
+
+  # Optionally cache packages
+  if Vagrant.has_plugin?("vagrant-cachier")
+    config.cache.scope = :box
+  end
 
   # Port forwarding
   config.vm.network "forwarded_port", guest: 3000, host: 3000, auto_correct: true
@@ -29,6 +34,8 @@ Vagrant.configure("2") do |config|
   config.vm.network "forwarded_port", guest: 7054, host: 7054, auto_correct: true
   config.vm.network "forwarded_port", guest: 7055, host: 7055, auto_correct: true
   config.vm.network "forwarded_port", guest: 7056, host: 7056, auto_correct: true
+  config.vm.network "forwarded_port", guest: 9051, host: 9051, auto_correct: true
+  config.vm.network "forwarded_port", guest: 9052, host: 9052, auto_correct: true
 
   # Create a public network, which generally matched to bridged network.
   # Bridged networks make the machine appear as another physical device on
@@ -45,7 +52,17 @@ Vagrant.configure("2") do |config|
   config.vm.provider "virtualbox" do |vb|
     # Increase memory allocated to vm (for build tasks)
     vb.memory = 6192
+
+    # Add disk space
+    disk = File.join(File.realpath(File.expand_path(__dir__)), "fabric-devenv-disk.vmdk").to_s
+    if not File.exists?(disk)
+      vb.customize [ "createmedium", "disk", "--filename", disk, "--format", "vmdk", "--size", 1024 * 20 ]
+      vb.customize ["storageattach", :id,  "--storagectl", "SCSI", "--port", 2, "--device", 0, "--type", "hdd", "--medium", disk]
+    end
   end
+
+  # Configure additional disk space
+  config.vm.provision "provision-disk", type: "shell", path: "provision-disk.sh", privileged: true
 
   # Configure vagrant user .profile
   config.vm.provision "provision-user-profile", type: "shell", path: "provision-user-profile.sh", privileged: false
